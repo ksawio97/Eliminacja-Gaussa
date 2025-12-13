@@ -11,7 +11,6 @@ int backsubst(Matrix *x, Matrix *mat, Matrix *b) {
             return 1;
         }
 
-        // POPRAWKA: Inicjalizujemy x wartością z b dla tego wiersza
         x->data[i][0] = b->data[i][0];
 
         for (int j = i + 1; j < mat->c; j++) {

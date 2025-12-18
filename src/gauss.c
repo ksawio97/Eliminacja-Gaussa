@@ -1,65 +1,60 @@
 #include "../include/gauss.h"
 #include "../include/mat_io.h"
+
+#include <stdbool.h>
 #include <math.h>
 
-int get_pivot_row_index(Matrix *m, int col_idx) {
-    int max_idx = col_idx;
-    double max_val = fabs(m->data[col_idx][col_idx]);
+int find_biggest_in_col(Matrix *mat, const int c, const int start_row) {
+    if (mat->r <= start_row) return -1;
 
-    for (int i = col_idx + 1; i < m->r; i++) {
-        double current_val = fabs(m->data[i][col_idx]);
-        if (current_val > max_val) {
-            max_val = current_val;
-            max_idx = i;
+    int biggest_index = start_row;
+    for (int r = start_row + 1; r < mat->r; r++) {
+        if (fabs(mat->data[r][c]) > fabs(mat->data[biggest_index][c])) {
+            biggest_index = r;
         }
-    }
-    return max_idx;
+    } 
+    return biggest_index;
 }
 
-void swap_matrix_rows(Matrix *mA, Matrix *mB, int r1, int r2) {
-    if (r1 == r2) return;
+void swap_rows(Matrix *mat, const int r1, const int r2) {
+    if (r1 == r2 || r1 < 0 || r2 < 0) return; 
 
-    for (int k = 0; k < mA->c; k++) {
-        double tmp = mA->data[r1][k];
-        mA->data[r1][k] = mA->data[r2][k];
-        mA->data[r2][k] = tmp;
-    }
-
-    double tmp_b = mB->data[r1][0];
-    mB->data[r1][0] = mB->data[r2][0];
-    mB->data[r2][0] = tmp_b;
+    double *temp = mat->data[r1];
+    mat->data[r1] = mat->data[r2];
+    mat->data[r2] = temp;
 }
 
-void subtract_scaled_row(Matrix *mA, Matrix *mB, int dest_row, int src_row, double factor) {
-    for (int k = 0; k < mA->c; k++) {
-        mA->data[dest_row][k] -= factor * mA->data[src_row][k];
+void apply_operation(Matrix *mat, Matrix *b, const int from, const int to, const double k) {
+    for (int c = 0; c < mat->c; c++) {
+        mat->data[to][c] -= mat->data[from][c] * k;
     }
-    mB->data[dest_row][0] -= factor * mB->data[src_row][0];
+    b->data[to][0] -= b->data[from][0] * k;
 }
 
-int eliminate(Matrix *mat, Matrix *b) {
-    for (int i = 0; i < mat->c - 1; i++) {
-        int pivot_row = get_pivot_row_index(mat, i);
+/**
+ * Zwraca 0 - elimnacja zakonczona sukcesem
+ * Zwraca 1 - macierz osobliwa - dzielenie przez 0
+ */
+int eliminate(Matrix *mat, Matrix *b){
+        for (int c = 0; c < mat->c - 1; c++) {
+            // start_row is the same as c bcs rows above are already handled
+            swap_rows(mat, c, find_biggest_in_col(mat, c, c));
 
-        if (fabs(mat->data[pivot_row][i]) < 1e-12) {
+            for (int r = c + 1; r < mat->r; r++) {
+                const double pivot = mat->data[c][c];
+                // can't divide by 0
+                if (pivot == 0.0) {
+                    return 1;
+                }
+                // mnożnik
+                const double k = mat->data[r][c] / pivot;
+                apply_operation(mat, b, c, r, k);
+            }
+
+        }
+        if (mat->data[mat->r - 1][mat->c - 1] == 0) {
             return 1;
         }
 
-        swap_matrix_rows(mat, b, i, pivot_row);
-
-        double pivot_val = mat->data[i][i];
-
-        for (int k = i + 1; k < mat->r; k++) {
-            if (mat->data[k][i] != 0.0) {
-                double factor = mat->data[k][i] / pivot_val;
-                subtract_scaled_row(mat, b, k, i, factor);
-            }
-        }
-    }
-
-    if (fabs(mat->data[mat->r - 1][mat->c - 1]) < 1e-12) {
-        return 1;
-    }
-
-    return 0;
+		return 0;
 }
